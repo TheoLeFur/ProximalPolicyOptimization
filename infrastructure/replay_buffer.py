@@ -6,7 +6,7 @@ class ReplayBuffer:
 
     batch_size : int = attr.ib(validator = lambda i, a, x : x > 0)
 
-    def attrs_post_init__(self):
+    def __attrs_post_init__(self):
 
         self.states = []
         self.probs = []

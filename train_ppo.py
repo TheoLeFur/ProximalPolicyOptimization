@@ -9,7 +9,6 @@ def train():
 
     env = gym.make("CartPole-v1")
     N = 20
-    batch_size = 16
     n_epochs = 5
     learning_rate = 3e-4
 
@@ -18,7 +17,7 @@ def train():
         "observation_dim" : env.observation_space.shape[0],
         "n_layers" : 2,
         "size" : 64,
-        "device" : "mps" if torch.backends.mps.is_available() else "cpu"
+        "device" : "cpu",
         "learning_rate" : 3e-4,
         "discrete" : True,
         "eps_clip" : 0.2,
@@ -42,11 +41,11 @@ def train():
 
         while not done:
 
-            prob, action, value = agent.choose_action(observation)
+            action, prob, value = agent.get_action(observation)
             observation_, reward, done, info, _ = env.step(action)
             score += reward
             n_steps += 1
-            agent.remember(observation, action, prob, value, reward, done)
+            agent.add_to_replay_buffer(observation, action, prob, value, reward, done)
 
             if n_steps % N == 0:
 

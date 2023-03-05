@@ -17,12 +17,12 @@ class PPOCritic(BaseCritic, nn.Module):
     learning_rate: float = attr.ib(default=3e-4)
     discrete: bool = attr.ib(default=True)
 
-    def attrs_post_init__(self):
+    def __attrs_post_init__(self):
 
         super().__init__()
 
         self.critic = build_mlp(
-            input_size=self.observation_dim,
+            input_size=self.ob_dim,
             output_size=1,
             n_layers=self.n_layers,
             size=self.size

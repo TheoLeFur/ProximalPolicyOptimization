@@ -21,14 +21,14 @@ class MLPPolicy(nn.Module):
     learning_rate: float = attr.ib(default=3e-4)
     discrete: bool = attr.ib(default=True)
 
-    def attrs_post_init__(self, **kwargs):
+    def __attrs_post_init__(self, **kwargs):
 
-        super().__init__()
+        super(MLPPolicy, self).__init__()
 
         if self.discrete:
 
-            self.logits_na = self.build_mlp(
-                input_size=self.ob_dim, output_size=self.action_dim, n_layers=self.n_layers, size=self.size)
+            self.logits_na = build_mlp(
+                input_size=self.ob_dim, output_size=self.action_dim, n_layers=self.n_layers, size=self.size, output_activation = 'softmax')
             self.logits_na.to(self.device)
             self.mean_net = None
             self.log_std = None
@@ -56,9 +56,8 @@ class MLPPolicy(nn.Module):
             observation = obs
         else:
             observation = obs[None]
-
         with torch.no_grad():
-            distribution = self(torch.Tensor(observation, device=self.device))
+            distribution = self(torch.tensor(observation, dtype = torch.float32, device = self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
@@ -72,8 +71,8 @@ class MLPPolicy(nn.Module):
 
     def forward(self, observation: torch.Tensor) -> distributions.Distribution:
         if self.discrete:
-            logits = self.logits_na(observation)
-            return torch.distributions.Categorical(logits=logits)
+            logits = self.logits_na(observation).squeeze()
+            return torch.distributions.Categorical(logits)
         else:
             batch_mean = self.mean_net(observation)
             covariance = torch.exp(self.log_std)
@@ -90,12 +89,15 @@ class PPOPolicy(MLPPolicy):
 
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
 
-        distribution = self(actions)
+        distribution = self(observations)
         new_log_probs = distribution.log_prob(actions)
         ratio = torch.exp(new_log_probs - old_log_probs)
         surr1 = ratio * advantages
         surr2 = torch.clamp(ratio, 1 - self.eps_clip, 1 +
                             self.eps_clip) * advantages
         loss = - torch.min(surr1, surr2).mean()
+        entropy = distribution.entropy().mean()
 
-        return loss, distribution.entropy()
+
+
+        return loss, entropy

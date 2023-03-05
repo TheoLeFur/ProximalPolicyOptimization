@@ -15,6 +15,7 @@ _str_to_activation = {
     'selu': nn.SELU(),
     'softplus': nn.Softplus(),
     'identity': nn.Identity(),
+    'softmax' : nn.Softmax(dim = -1),
 }
 
 def build_mlp(input_size: int, output_size: int, n_layers: int, size: int, activation: Activation = "tanh", output_activation: Activation = "identity") -> nn.Module:
