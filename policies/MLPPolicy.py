@@ -19,7 +19,6 @@ class MLPPolicy(nn.Module):
     device: torch.device = attr.ib(
         default="mps" if torch.backends.mps.is_available() else "cpu")
     learning_rate: float = attr.ib(default=3e-4)
-    training: bool = attr.ib(default=True)
     discrete: bool = attr.ib(default=True)
 
     def attrs_post_init__(self, **kwargs):
@@ -86,7 +85,7 @@ class PPOPolicy(MLPPolicy):
 
     eps_clip: float = attr.ib(default=0.2)
 
-    def atts_post_init__(self):
+    def attrs_post_init__(self):
         super().__init__()
 
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
@@ -99,4 +98,4 @@ class PPOPolicy(MLPPolicy):
                             self.eps_clip) * advantages
         loss = - torch.min(surr1, surr2).mean()
 
-        return loss
+        return loss, distribution.entropy()

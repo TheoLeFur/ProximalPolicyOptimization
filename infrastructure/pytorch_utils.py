@@ -17,7 +17,6 @@ _str_to_activation = {
     'identity': nn.Identity(),
 }
 
-
 def build_mlp(input_size: int, output_size: int, n_layers: int, size: int, activation: Activation = "tanh", output_activation: Activation = "identity") -> nn.Module:
 
     if isinstance(activation, str):

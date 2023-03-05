@@ -1,77 +1,121 @@
+import attr
 import torch
 import torch.nn as nn
 import numpy as np
-
 from infrastructure.replay_buffer import ReplayBuffer
 from agents.base_agent import BaseAgent
 from policies.MLPPolicy import PPOPolicy
 from critics.PPOCritic import PPOCritic
-from collections import OrderedDict
 
 
+@attr.s(eq=False, repr=False)
 class PPOAgent(BaseAgent):
 
-    def __init__(self, env, hparams):
+    hparams      = attr.ib()
+    gamma: float = attr.ib(default=0.99, validator=lambda i, a, x: x > 0)
+    gae_lambda: float = attr.ib(default=0.99, validator=lambda i, a, x: x > 0)
+    batch_size: int = attr.ib(default=64)
+    n_epochs: int = attr.ib(default=7)
+    N: int = attr.ib(default=50)
+    entropy_reg : float = attr.ib(default = 0.01)
 
-        super(PPOAgent, self).__init__()
+    def attrs_post_init__(self):
 
-        self.env = env
-        self.agent_params = hparams
-        self.gamma = hparams["gamma"]
-        self.num_critic_updates_per_agent_update = hparams[
-            'num_critic_updates_per_agent_update']
-        self.num_actor_updates_per_agent_update = hparams['num_actor_updates_per_agent_update']
-        self.device = hparams["device"]
+        super().__init__()
+
+        self.action_dim = self.hparams["action_dim"]
+        self.observation_dim = self.hparams["observation_dim"]
+        self.n_layers = self.hparams["n_layers"]
+        self.size = self.hparams["size"]
+        self.device = self.hparams["device"]
+        self.learning_rate = self.hparams["learning_rate"]
+        self.discrete = self.hparams["discrete"]
+        self.eps_clip = self.hparams["eps_clip"]
+        
 
         self.actor = PPOPolicy(
-            hparams["ac_dim"],
-            hparams["ob_dim"],
-            hparams["n_layers"],
-            hparams["size"],
-            hparams["device"],
-            hparams["discrete"],
-            hparams["eps_clip"]
-        ).to(self.device)
+            self.action_dim,
+            self.observation_dim,
+            self.n_layers,
+            self.size,
+            self.device,
+            self.learning_rate,
+            self.discrete,
+            self.eps_clip
+        )
 
-        self.old_policy = PPOPolicy(
-            hparams["ac_dim"],
-            hparams["ob_dim"],
-            hparams["n_layers"],
-            hparams["size"],
-            hparams["device"],
-            hparams["discrete"],
-            hparams["eps_clip"]
-        ).to(self.device)
+        self.critic = PPOCritic(
+            self.observation_dim,
+            self.n_layers,
+            self.size,
+            self.device,
+            self.learning_rate,
+            self.discrete,
+        )
 
-        self.critic = PPOCritic(hparams)
-        self.old_policy.load_state_dict(self.actor.state_dict())
-        self.replay_buffer = ReplayBuffer()
+        self.replay_buffer = ReplayBuffer(self.batch_size)
 
-    def estimate_advantage(self, ob_no, next_ob_no, rew_no, terminal_n):
+        def add_to_replay_buffer(self, state, action, probs, vals, reward, done):
+            self.replay_buffer.store_memory(state, action, probs, vals, reward, done)
 
-        ob, next_ob, rew, done = map(lambda x: torch.from_numpy(x).to(
-            self.device), [ob_no, next_ob_no, rew_no, terminal_n])
 
-        value = self.critic(ob)
-        next_value = self.critic(next_ob) * (1 - done)
-        advantage = rew + self.gamma * next_value - value
+        def train(self):
 
-        return advantage.cpu().detach().numpy()
+            for _ in range(self.n_epochs):
 
-    def train(self, ob_no, ac_no, next_ob_no, rew_no, terminal_n):
+                states, actions, old_probs, values, rewards, dones, batches = self.replay_buffer.generate_batches()
+                advantages = np.zeros(len(rewards), dtype = np.float32)
 
-        loss = OrderedDict()
+                for t in range(len(rewards) - 1):
 
-        for critic_update in range(self.num_critic_updates_per_agent_update):
-            loss["critic_update"] = self.critic.update(
-                ob_no, ac_no, next_ob_no, rew_no, terminal_n)
+                    a_t = 0
+                    discount = 1
 
-        advantage = self.estimate_advantage(
-            ob_no, next_ob_no, rew_no, terminal_n)
-        old_log_prob = self.old_policy(ob_no)
+                    for k in range(t, len(rewards) - 1):
+                        delta_t = rewards[k] + self.gamma * values[k+1] * (1 - dones[k]) - values[k]
+                        a_t += discount * (delta_t)
+                    advantages[t] = a_t
 
-        for actor_update in range(self.num_actor_updates_per_agent_update):
-            loss["actor_update"] = self.actor.update(ob_no, ac_no, advantage, old_log_prob)
-        self.old_policy.load_state_dict(self.actor.state_dict())
+                map(lambda x : torch.tensor(x, dtype = torch.float32, device = self.device), [states, actions, old_probs, values, advantages])
 
-    def learn(self):
+                for batch in batches:
+
+                    map(lambda x: x[batch], [states, actions, old_probs, values, advantages])
+
+                    actor_loss, entropy = self.actor.update(states, actions, old_probs, advantages)
+                    critic_loss = self.critic.update(states, values, advantages)
+                    total_loss = actor_loss + critic_loss + self.entropy_reg * entropy
+
+                    self.actor.optimizer.zero_grad()
+                    self.critic.optmiizer.zero_grad()
+                    total_loss.backward()
+                    self.actor.optimizer.step()
+                    self.critic.optimizer.step()
+
+
+                self.replay_buffer.clear_memory()
+
+        def get_action(self, obs : np.ndarray):
+
+            
+
+
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

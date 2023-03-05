@@ -13,8 +13,4 @@ class BaseAgent(object):
     def add_to_replay_buffer(self, paths):
         raise NotImplementedError
     
-    def save(self, filepath):
-        raise NotImplementedError
     
-    def sample(self, batch_size):
-        raise NotImplementedError

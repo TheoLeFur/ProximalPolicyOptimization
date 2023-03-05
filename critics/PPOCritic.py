@@ -9,7 +9,6 @@ from infrastructure.pytorch_utils import build_mlp
 @attr.s(eq=False, repr=False)
 class PPOCritic(BaseCritic, nn.Module):
 
-    action_dim: int = attr.ib(validator=lambda i, a, x: x > 0)
     ob_dim: int = attr.ib(validator=lambda i, a, x: x > 0)
     n_layers: int = attr.ib(validator=lambda i, a, x: x > 0)
     size: int = attr.ib(validator=lambda i, a, x: x > 0)
@@ -43,6 +42,6 @@ class PPOCritic(BaseCritic, nn.Module):
         return out.cpu().detach().numpy()
 
     def update(self, states: torch.Tensor, values: torch.Tensor, advantages: torch.Tensor):
-        new_critic_values = self.states.squeeze()
+        new_critic_values = self(states).squeeze()
         loss = self.loss_fn(new_critic_values, advantages + values)
         return loss
