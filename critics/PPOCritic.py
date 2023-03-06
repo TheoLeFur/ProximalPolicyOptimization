@@ -42,6 +42,6 @@ class PPOCritic(BaseCritic, nn.Module):
         return out.cpu().detach().numpy()
 
     def update(self, states: torch.Tensor, values: torch.Tensor, advantages: torch.Tensor):
-        new_critic_values = self(states).squeeze()
+        new_critic_values = torch.squeeze(self(states))
         loss = self.loss_fn(new_critic_values, advantages + values)
         return loss

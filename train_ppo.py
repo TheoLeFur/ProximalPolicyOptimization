@@ -9,7 +9,7 @@ def train():
 
     env = gym.make("CartPole-v1")
     N = 20
-    n_epochs = 5
+    n_epochs = 10
     learning_rate = 3e-4
 
     params = {
@@ -17,15 +17,15 @@ def train():
         "observation_dim" : env.observation_space.shape[0],
         "n_layers" : 2,
         "size" : 64,
-        "device" : "cpu",
+        "device" : "mps" if torch.backends.mps.is_available() else "cpu",
         "learning_rate" : 3e-4,
         "discrete" : True,
-        "eps_clip" : 0.2,
+        "eps_clip" : 0.1,
     }
 
 
 
-    agent = PPOAgent(params)
+    agent = PPOAgent(params, batch_size = 16)
 
     n_games = 300
 
@@ -48,15 +48,13 @@ def train():
             agent.add_to_replay_buffer(observation, action, prob, value, reward, done)
 
             if n_steps % N == 0:
-
                 agent.train()
                 learn_iters += 1
-
             observation = observation_
             score_history.append(score)
 
         print(
-            {"game number": n_games,
+            {"game number": i,
              "score": np.mean(score_history),
              }
         )

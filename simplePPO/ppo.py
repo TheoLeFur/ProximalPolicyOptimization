@@ -171,6 +171,9 @@ class Agent:
             values = torch.tensor(vals, dtype = torch.float32, device = self.actor.device)
 
             for batch in batches:
+
+                print(states.shape)
+
                 states = torch.tensor(
                     states[batch], dtype=torch.float32, device=self.actor.device)
                 old_probs = torch.tensor(

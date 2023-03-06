@@ -50,13 +50,10 @@ class MLPPolicy(nn.Module):
             self.optimizer = torch.optim.Adam(itertools.chain(
                 [self.log_std], self.mean_net.parameters()), lr=self.learning_rate)
 
-    def get_action(self, obs: np.ndarray) -> np.ndarray:
+    def get_action(self, observation: np.ndarray) -> np.ndarray:
 
-        if len(obs.shape) > 1:
-            observation = obs
-        else:
-            observation = obs[None]
         with torch.no_grad():
+
             distribution = self(torch.tensor(observation, dtype = torch.float32, device = self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)

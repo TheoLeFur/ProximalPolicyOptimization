@@ -21,7 +21,6 @@ class PPOAgent(BaseAgent):
 
     def __attrs_post_init__(self):
 
-
         self.action_dim = self.hparams["action_dim"]
         self.observation_dim = self.hparams["observation_dim"]
         self.n_layers = self.hparams["n_layers"]
@@ -73,17 +72,18 @@ class PPOAgent(BaseAgent):
                     delta_t = rewards[k] + self.gamma * \
                         values[k+1] * (1 - dones[k]) - values[k]
                     a_t += discount * (delta_t)
+                    discount *= self.gamma * self.gae_lambda
                 advantages[t] = a_t
-
-            
 
             for batch in batches:
 
-                states, actions, old_probs, values, advantages =  map(lambda x: torch.tensor(x, dtype = torch.float32, device = self.device), [states, actions, old_probs, values, advantages])
-                states, actions, old_probs, values, advantages = map(lambda x : x[batch], [states, actions, old_probs, values, advantages])
+                print("HHH",states.shape)
+                
+                states_, actions_, old_probs_, values_, advantages_ = map(lambda x: torch.tensor(
+                    x[batch], dtype=torch.float32, device=self.device), [states, actions, old_probs, values, advantages])
                 actor_loss, entropy = self.actor.update(
-                    states, actions, old_probs, advantages)
-                critic_loss = self.critic.update(states, values, advantages)
+                    states_, actions_, old_probs_, advantages_)
+                critic_loss = self.critic.update(states_, values_, advantages_)
                 total_loss = actor_loss + critic_loss + self.entropy_reg * entropy
 
                 self.actor.optimizer.zero_grad()
@@ -92,11 +92,12 @@ class PPOAgent(BaseAgent):
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
 
-            self.replay_buffer.clear_memory()
+        self.replay_buffer.clear_memory()
 
     def get_action(self, obs: np.ndarray):
 
         action, prob = self.actor.get_action(obs)
-        value = self.critic(torch.tensor(obs, dtype = torch.float32, device = self.device))
+        value = self.critic(torch.tensor(
+            obs, dtype=torch.float32, device=self.device))
 
         return action, prob, value.cpu().detach().numpy()

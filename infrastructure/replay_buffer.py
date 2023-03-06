@@ -1,12 +1,10 @@
 import attr
 import numpy as np
 
-@attr.s(eq = False, repr = False)
+
 class ReplayBuffer:
 
-    batch_size : int = attr.ib(validator = lambda i, a, x : x > 0)
-
-    def __attrs_post_init__(self):
+    def __init__(self, batch_size):
 
         self.states = []
         self.probs = []
@@ -14,6 +12,7 @@ class ReplayBuffer:
         self.actions = []
         self.rewards = []
         self.dones = []
+        self.batch_size = batch_size
 
     def generate_batches(self):
 
