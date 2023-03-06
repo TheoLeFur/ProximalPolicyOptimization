@@ -13,11 +13,10 @@ class PPOAgent(BaseAgent):
 
     hparams = attr.ib()
     gamma: float = attr.ib(default=0.99, validator=lambda i, a, x: x > 0)
-    gae_lambda: float = attr.ib(default=0.99, validator=lambda i, a, x: x > 0)
+    gae_lambda: float = attr.ib(default=0.95, validator=lambda i, a, x: x > 0)
     batch_size: int = attr.ib(default=16)
-    n_epochs: int = attr.ib(default=7)
-    N: int = attr.ib(default=50)
-    entropy_reg: float = attr.ib(default=0.01)
+    n_epochs: int = attr.ib(default=5)
+    N: int = attr.ib(default=20)
 
     def __attrs_post_init__(self):
 
@@ -75,13 +74,16 @@ class PPOAgent(BaseAgent):
 
             for batch in batches:
 
+
                 states_, actions_, old_probs_, values_, advantages_ = map(lambda x: torch.tensor(
                     x[batch], dtype=torch.float32, device=self.device), [states, actions, old_probs, values, advantages])
                 actor_loss = self.actor.update(
-                    states_, actions_, old_probs_, advantages_)
+                    states_, actions_, advantages_, old_probs_)
                 critic_loss = self.critic.update(states_, values_, advantages_)
-                total_loss = actor_loss + 0.5 * critic_loss
 
+
+                total_loss = actor_loss + 0.5 * critic_loss
+                self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 total_loss.backward()
                 self.actor.optimizer.step()
@@ -94,5 +96,6 @@ class PPOAgent(BaseAgent):
         action, prob = self.actor.get_action(obs)
         value = self.critic(torch.tensor(
             obs, dtype=torch.float32, device=self.device))
+        value = value.squeeze().item()
 
-        return action, prob, value.cpu().detach().numpy()
+        return action, prob, value

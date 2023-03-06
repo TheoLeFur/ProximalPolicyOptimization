@@ -41,3 +41,5 @@ def build_mlp(input_size: int, output_size: int, n_layers: int, size: int, activ
     ))
 
     return nn.Sequential(*layers)
+
+

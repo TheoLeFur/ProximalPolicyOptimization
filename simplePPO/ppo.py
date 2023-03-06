@@ -172,7 +172,7 @@ class Agent:
 
             for batch in batches:
 
-                print(states.shape)
+                print(len(batch))
 
                 states = torch.tensor(
                     states[batch], dtype=torch.float32, device=self.actor.device)
@@ -185,7 +185,6 @@ class Agent:
                 critic_value = torch.squeeze(self.critic(states))
                 new_probs = distribution.log_prob(actions)
                 ratio = torch.exp(new_probs - old_probs)
-
                 surr1 = advantage[batch] * ratio
                 surr2 = torch.clamp(ratio, 1 - self.policy_clip,
                                     1 + self.policy_clip) * advantage[batch]

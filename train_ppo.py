@@ -1,31 +1,30 @@
 import numpy as np
 import gym
 import torch
+import argparse
 from agents.ppo_agent import PPOAgent
 from tqdm import tqdm
 
 
 def train():
 
-    env = gym.make("CartPole-v1")
+    env = gym.make("Cartpole-v0")
     N = 20
     n_epochs = 5
     learning_rate = 3e-4
 
     params = {
-        "action_dim" : env.action_space.n,
-        "observation_dim" : env.observation_space.shape[0],
-        "n_layers" : 2,
-        "size" : 64,
-        "device" : "mps" if torch.backends.mps.is_available() else "cpu",
-        "learning_rate" : 3e-4,
-        "discrete" : True,
-        "eps_clip" : 0.2,
+        "action_dim": env.action_space.n,
+        "observation_dim": env.observation_space.shape[0],
+        "n_layers": 2,
+        "size": 64,
+        "device": "mps" if torch.backends.mps.is_available() else "cpu",
+        "learning_rate": 3e-4,
+        "discrete": True,
+        "eps_clip": 0.1,
     }
 
-
-
-    agent = PPOAgent(params, batch_size = 8)
+    agent = PPOAgent(params, batch_size=16)
 
     n_games = 300
 
@@ -45,7 +44,8 @@ def train():
             observation_, reward, done, info, _ = env.step(action)
             score += reward
             n_steps += 1
-            agent.add_to_replay_buffer(observation, action, prob, value, reward, done)
+            agent.add_to_replay_buffer(
+                observation, action, prob, value, reward, done)
 
             if n_steps % N == 0:
                 agent.train()
@@ -62,7 +62,3 @@ def train():
 
 if __name__ == "__main__":
     train()
-    
-
-
-

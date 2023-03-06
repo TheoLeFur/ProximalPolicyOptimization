@@ -26,7 +26,6 @@ class MLPPolicy(nn.Module):
         super(MLPPolicy, self).__init__()
 
         if self.discrete:
-
             self.logits_na = build_mlp(
                 input_size=self.ob_dim, output_size=self.action_dim, n_layers=self.n_layers, size=self.size, output_activation='softmax')
             self.logits_na.to(self.device)
@@ -36,7 +35,6 @@ class MLPPolicy(nn.Module):
                 self.logits_na.parameters(), lr=self.learning_rate)
 
         else:
-
             self.logits_na = None
             self.mean_net = self.build_mlp(
                 input_size=self.ob_dim,
@@ -52,6 +50,8 @@ class MLPPolicy(nn.Module):
 
     def get_action(self, observation: np.ndarray) -> np.ndarray:
 
+        if len(observation) > 1:
+            observation = observation[None]
 
         with torch.no_grad():
 
@@ -60,7 +60,7 @@ class MLPPolicy(nn.Module):
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
-        return torch.squeeze(action).cpu().detach().numpy(), torch.squeeze(logprobs).cpu().detach().numpy()
+        return torch.squeeze(action).item(), torch.squeeze(logprobs).item()
 
     def update(self, observations, actions, **kwargs):
         raise NotImplementedError
@@ -81,14 +81,15 @@ class MLPPolicy(nn.Module):
 @attr.s(eq=False, repr=False)
 class PPOPolicy(MLPPolicy):
 
-    eps_clip :float = attr.ib(default = 0.2, validator=lambda i, a, x: x >0)
+    eps_clip: float = attr.ib(default=0.1, validator=lambda i, a, x: x > 0)
 
     def __attrs_post_init__(self, **kwargs):
+
         super(PPOPolicy, self).__attrs_post_init__()
 
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
 
-        distribution = self.forward(observations)
+        distribution = self(observations)
         new_log_probs = distribution.log_prob(actions)
         ratio = torch.exp(new_log_probs - old_log_probs)
         surr1 = advantages * ratio
