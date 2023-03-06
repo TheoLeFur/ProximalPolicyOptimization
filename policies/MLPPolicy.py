@@ -88,7 +88,7 @@ class PPOPolicy(MLPPolicy):
 
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
 
-        distribution = self(observations)
+        distribution = self.forward(observations)
         new_log_probs = distribution.log_prob(actions)
         ratio = torch.exp(new_log_probs - old_log_probs)
         surr1 = advantages * ratio
