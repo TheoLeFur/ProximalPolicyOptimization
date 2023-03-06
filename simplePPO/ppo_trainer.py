@@ -3,7 +3,6 @@ import gym
 from ppo import Agent
 from tqdm import tqdm
 
-
 def train():
 
     env = gym.make("CartPole-v1")
@@ -48,6 +47,6 @@ def train():
             }
         )
 
-
 if __name__ == "__main__":
+    
     train()

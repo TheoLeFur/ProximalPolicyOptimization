@@ -64,29 +64,24 @@ class PPOAgent(BaseAgent):
             advantages = np.zeros(len(rewards), dtype=np.float32)
 
             for t in range(len(rewards) - 1):
-
-                a_t = 0
                 discount = 1
-
+                a_t = 0
                 for k in range(t, len(rewards) - 1):
-                    delta_t = rewards[k] + self.gamma * \
-                        values[k+1] * (1 - dones[k]) - values[k]
-                    a_t += discount * (delta_t)
+
+                    a_t += discount * \
+                        (rewards[k] + self.gamma*values[k+1]) * \
+                        (1-int(dones[k])) - values[k]
                     discount *= self.gamma * self.gae_lambda
-                advantages[t] = a_t
 
             for batch in batches:
 
-                print("HHH",states.shape)
-                
                 states_, actions_, old_probs_, values_, advantages_ = map(lambda x: torch.tensor(
                     x[batch], dtype=torch.float32, device=self.device), [states, actions, old_probs, values, advantages])
-                actor_loss, entropy = self.actor.update(
+                actor_loss = self.actor.update(
                     states_, actions_, old_probs_, advantages_)
                 critic_loss = self.critic.update(states_, values_, advantages_)
-                total_loss = actor_loss + critic_loss + self.entropy_reg * entropy
+                total_loss = actor_loss + 0.5 * critic_loss
 
-                self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 total_loss.backward()
                 self.actor.optimizer.step()

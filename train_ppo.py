@@ -9,7 +9,7 @@ def train():
 
     env = gym.make("CartPole-v1")
     N = 20
-    n_epochs = 10
+    n_epochs = 5
     learning_rate = 3e-4
 
     params = {
@@ -20,12 +20,12 @@ def train():
         "device" : "mps" if torch.backends.mps.is_available() else "cpu",
         "learning_rate" : 3e-4,
         "discrete" : True,
-        "eps_clip" : 0.1,
+        "eps_clip" : 0.2,
     }
 
 
 
-    agent = PPOAgent(params, batch_size = 16)
+    agent = PPOAgent(params, batch_size = 8)
 
     n_games = 300
 

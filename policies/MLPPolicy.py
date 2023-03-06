@@ -28,7 +28,7 @@ class MLPPolicy(nn.Module):
         if self.discrete:
 
             self.logits_na = build_mlp(
-                input_size=self.ob_dim, output_size=self.action_dim, n_layers=self.n_layers, size=self.size, output_activation = 'softmax')
+                input_size=self.ob_dim, output_size=self.action_dim, n_layers=self.n_layers, size=self.size, output_activation='softmax')
             self.logits_na.to(self.device)
             self.mean_net = None
             self.log_std = None
@@ -52,9 +52,11 @@ class MLPPolicy(nn.Module):
 
     def get_action(self, observation: np.ndarray) -> np.ndarray:
 
+
         with torch.no_grad():
 
-            distribution = self(torch.tensor(observation, dtype = torch.float32, device = self.device))
+            distribution = self(torch.tensor(
+                observation, dtype=torch.float32, device=self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
@@ -79,22 +81,19 @@ class MLPPolicy(nn.Module):
 @attr.s(eq=False, repr=False)
 class PPOPolicy(MLPPolicy):
 
-    eps_clip: float = attr.ib(default=0.2)
+    eps_clip :float = attr.ib(default = 0.2, validator=lambda i, a, x: x >0)
 
-    def attrs_post_init__(self):
-        super().__init__()
+    def __attrs_post_init__(self, **kwargs):
+        super(PPOPolicy, self).__attrs_post_init__()
 
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
 
         distribution = self(observations)
         new_log_probs = distribution.log_prob(actions)
         ratio = torch.exp(new_log_probs - old_log_probs)
-        surr1 = ratio * advantages
-        surr2 = torch.clamp(ratio, 1 - self.eps_clip, 1 +
-                            self.eps_clip) * advantages
-        loss = - torch.min(surr1, surr2).mean()
-        entropy = distribution.entropy().mean()
+        surr1 = advantages * ratio
+        surr2 = torch.clamp(ratio, 1 - self.eps_clip,
+                            1 + self.eps_clip) * advantages
 
-
-
-        return loss, entropy
+        actor_loss = - torch.min(surr1, surr2).mean()
+        return actor_loss
