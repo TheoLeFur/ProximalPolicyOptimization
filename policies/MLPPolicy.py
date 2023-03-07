@@ -26,8 +26,16 @@ class MLPPolicy(nn.Module):
         super(MLPPolicy, self).__init__()
 
         if self.discrete:
+
             self.logits_na = build_mlp(
-                input_size=self.ob_dim, output_size=self.action_dim, n_layers=self.n_layers, size=self.size, output_activation='softmax')
+                input_size=self.ob_dim,
+                output_size=self.action_dim,
+                n_layers=self.n_layers,
+                size=self.size,
+                output_activation='softmax')
+            
+
+
             self.logits_na.to(self.device)
             self.mean_net = None
             self.log_std = None
@@ -54,13 +62,12 @@ class MLPPolicy(nn.Module):
             observation = observation[None]
 
         with torch.no_grad():
-
             distribution = self(torch.tensor(
-                observation, dtype=torch.float32, device=self.device))
+                [observation]).to(self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
-        return torch.squeeze(action).item(), torch.squeeze(logprobs).item()
+        return torch.squeeze(action), torch.squeeze(logprobs)
 
     def update(self, observations, actions, **kwargs):
         raise NotImplementedError
@@ -71,14 +78,14 @@ class MLPPolicy(nn.Module):
     def forward(self, observation: torch.Tensor) -> distributions.Distribution:
         if self.discrete:
             logits = self.logits_na(observation).squeeze()
-            return torch.distributions.Categorical(logits)
+            return torch.distributions.Categorical(logits=logits)
         else:
             batch_mean = self.mean_net(observation)
             covariance = torch.exp(self.log_std)
             return torch.distributions.Normal(batch_mean, covariance)
 
 
-@attr.s(eq=False, repr=False)
+@attr.s
 class PPOPolicy(MLPPolicy):
 
     eps_clip: float = attr.ib(default=0.1, validator=lambda i, a, x: x > 0)

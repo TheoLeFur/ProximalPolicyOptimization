@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 def train():
 
-    env = gym.make("Cartpole-v0")
+    env = gym.make("CartPole-v0")
     N = 20
     n_epochs = 5
     learning_rate = 3e-4
@@ -25,6 +25,7 @@ def train():
     }
 
     agent = PPOAgent(params, batch_size=16)
+    print(agent.observation_dim)
 
     n_games = 300
 
@@ -44,8 +45,7 @@ def train():
             observation_, reward, done, info, _ = env.step(action)
             score += reward
             n_steps += 1
-            agent.add_to_replay_buffer(
-                observation, action, prob, value, reward, done)
+            agent.add_to_replay_buffer(observation, action, prob, value, reward, done)
 
             if n_steps % N == 0:
                 agent.train()

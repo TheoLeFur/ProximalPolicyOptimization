@@ -29,24 +29,26 @@ class PPOAgent(BaseAgent):
         self.discrete = self.hparams["discrete"]
         self.eps_clip = self.hparams["eps_clip"]
 
+
         self.actor = PPOPolicy(
-            self.action_dim,
-            self.observation_dim,
-            self.n_layers,
-            self.size,
-            self.device,
-            self.learning_rate,
-            self.discrete,
-            self.eps_clip
+            action_dim = self.action_dim,
+            ob_dim = self.observation_dim, 
+            n_layers = self.n_layers,
+            size = self.size,
+            device = self.device,
+            learning_rate=self.learning_rate,
+            discrete = self.discrete,
+            eps_clip=self.eps_clip
         )
 
+
         self.critic = PPOCritic(
-            self.observation_dim,
-            self.n_layers,
-            self.size,
-            self.device,
-            self.learning_rate,
-            self.discrete,
+            ob_dim=self.observation_dim,
+            n_layers=self.n_layers,
+            size=self.size,
+            device=self.device,
+            learning_rate=self.learning_rate,
+            discrete=self.discrete,
         )
 
         self.replay_buffer = ReplayBuffer(self.batch_size)
@@ -76,11 +78,10 @@ class PPOAgent(BaseAgent):
 
 
                 states_, actions_, old_probs_, values_, advantages_ = map(lambda x: torch.tensor(
-                    x[batch], dtype=torch.float32, device=self.device), [states, actions, old_probs, values, advantages])
+                    x[batch]).to(self.device), [states, actions, old_probs, values, advantages])
                 actor_loss = self.actor.update(
                     states_, actions_, advantages_, old_probs_)
                 critic_loss = self.critic.update(states_, values_, advantages_)
-
 
                 total_loss = actor_loss + 0.5 * critic_loss
                 self.actor.optimizer.zero_grad()
@@ -94,8 +95,6 @@ class PPOAgent(BaseAgent):
     def get_action(self, obs: np.ndarray):
 
         action, prob = self.actor.get_action(obs)
-        value = self.critic(torch.tensor(
-            obs, dtype=torch.float32, device=self.device))
-        value = value.squeeze().item()
+        value = self.critic.forward_np(obs)
 
-        return action, prob, value
+        return action.cpu().detach().numpy(), prob.cpu().detach().numpy(), value

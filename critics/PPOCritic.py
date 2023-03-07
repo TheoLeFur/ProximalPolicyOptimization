@@ -12,8 +12,7 @@ class PPOCritic(BaseCritic, nn.Module):
     ob_dim: int = attr.ib(validator=lambda i, a, x: x > 0)
     n_layers: int = attr.ib(validator=lambda i, a, x: x > 0)
     size: int = attr.ib(validator=lambda i, a, x: x > 0)
-    device: torch.device = attr.ib(
-        default="mps" if torch.backends.mps.is_available() else "cpu")
+    device: torch.device = attr.ib(default="mps" if torch.backends.mps.is_available() else "cpu")
     learning_rate: float = attr.ib(default=3e-4)
     discrete: bool = attr.ib(default=True)
 
@@ -37,13 +36,13 @@ class PPOCritic(BaseCritic, nn.Module):
         return self.critic(obs).squeeze()
 
     def forward_np(self, obs: np.ndarray):
-        obs = torch.Tensor(obs).to(self.device)
+        obs = torch.tensor(obs, dtype = torch.float32, device = self.device)
         out = self.critic(obs).squeeze()
         return out.cpu().detach().numpy()
 
     def update(self, states: torch.Tensor, values: torch.Tensor, advantages: torch.Tensor):
-        new_critic_values = self(states).squeeze()
-        loss = self.loss_fn(new_critic_values, advantages + values).mean()
+        new_critic_values = self(states)
+        loss = self.loss_fn(advantages + values, new_critic_values)
         return loss
     
     def save(self, filepath : str):
