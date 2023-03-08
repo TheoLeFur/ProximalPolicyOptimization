@@ -9,21 +9,28 @@ from collections import OrderedDict
 from infrastructure.pytorch_utils import build_mlp
 
 
-@attr.s(eq=False, repr=False)
-class MLPPolicy(nn.Module):
+class PPOPolicy(nn.Module):
 
-    action_dim: int = attr.ib(validator=lambda i, a, x: x > 0)
-    ob_dim: int = attr.ib(validator=lambda i, a, x: x > 0)
-    n_layers: int = attr.ib(validator=lambda i, a, x: x > 0)
-    size: int = attr.ib(validator=lambda i, a, x: x > 0)
-    device: torch.device = attr.ib(
-        default="mps" if torch.backends.mps.is_available() else "cpu")
-    learning_rate: float = attr.ib(default=3e-4)
-    discrete: bool = attr.ib(default=True)
+    def __init__(self,
+                 action_dim: int,
+                 ob_dim: int,
+                 n_layers: int,
+                 size: int,
+                 device: torch.device = None,
+                 learning_rate: float = 3e-4,
+                 discrete: bool = True,
+                 eps_clip: float = 0.1):
 
-    def __attrs_post_init__(self, **kwargs):
+        super().__init__()
 
-        super(MLPPolicy, self).__init__()
+        self.action_dim = action_dim
+        self.ob_dim = ob_dim
+        self.n_layers = n_layers
+        self.size = size
+        self.device = device
+        self.learning_rate = learning_rate
+        self.discrete = discrete
+        self.eps_clip = eps_clip
 
         if self.discrete:
 
@@ -33,8 +40,6 @@ class MLPPolicy(nn.Module):
                 n_layers=self.n_layers,
                 size=self.size,
                 output_activation='softmax')
-            
-
 
             self.logits_na.to(self.device)
             self.mean_net = None
@@ -60,17 +65,13 @@ class MLPPolicy(nn.Module):
 
         if len(observation) > 1:
             observation = observation[None]
-
         with torch.no_grad():
-            distribution = self(torch.tensor(
-                [observation]).to(self.device))
+            distribution = self.forward(torch.tensor(
+                    [observation]).to(self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
         return torch.squeeze(action), torch.squeeze(logprobs)
-
-    def update(self, observations, actions, **kwargs):
-        raise NotImplementedError
 
     def save(self, filepath: str):
         torch.save(self.state_dict(), filepath)
@@ -79,21 +80,12 @@ class MLPPolicy(nn.Module):
         if self.discrete:
             logits = self.logits_na(observation).squeeze()
             return torch.distributions.Categorical(logits=logits)
+
         else:
             batch_mean = self.mean_net(observation)
             covariance = torch.exp(self.log_std)
             return torch.distributions.Normal(batch_mean, covariance)
-
-
-@attr.s
-class PPOPolicy(MLPPolicy):
-
-    eps_clip: float = attr.ib(default=0.1, validator=lambda i, a, x: x > 0)
-
-    def __attrs_post_init__(self, **kwargs):
-
-        super(PPOPolicy, self).__attrs_post_init__()
-
+        
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
 
         distribution = self(observations)

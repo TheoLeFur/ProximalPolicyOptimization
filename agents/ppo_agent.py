@@ -8,18 +8,17 @@ from policies.MLPPolicy import PPOPolicy
 from critics.PPOCritic import PPOCritic
 
 
-@attr.s(eq=False, repr=False)
-class PPOAgent(BaseAgent):
+class PPOAgent:
 
-    hparams = attr.ib()
-    gamma: float = attr.ib(default=0.99, validator=lambda i, a, x: x > 0)
-    gae_lambda: float = attr.ib(default=0.95, validator=lambda i, a, x: x > 0)
-    batch_size: int = attr.ib(default=16)
-    n_epochs: int = attr.ib(default=5)
-    N: int = attr.ib(default=20)
+    def __init__(self, hparams: dict, gamma: float = 0.99, gae_lambda: float = 0.95, batch_size: int = 64, n_epochs: int = 5, N: int = 20) -> None:
 
-    def __attrs_post_init__(self):
 
+        self.hparams = hparams
+        self.gamma = gamma
+        self.gae_lambda = gae_lambda
+        self.batch_size = batch_size
+        self.n_epochs = n_epochs
+        self.N = N
         self.action_dim = self.hparams["action_dim"]
         self.observation_dim = self.hparams["observation_dim"]
         self.n_layers = self.hparams["n_layers"]
@@ -31,16 +30,15 @@ class PPOAgent(BaseAgent):
 
 
         self.actor = PPOPolicy(
-            action_dim = self.action_dim,
-            ob_dim = self.observation_dim, 
-            n_layers = self.n_layers,
-            size = self.size,
-            device = self.device,
+            action_dim=self.action_dim,
+            ob_dim=self.observation_dim,
+            n_layers=self.n_layers,
+            size=self.size,
+            device=self.device,
             learning_rate=self.learning_rate,
-            discrete = self.discrete,
+            discrete=self.discrete,
             eps_clip=self.eps_clip
         )
-
 
         self.critic = PPOCritic(
             ob_dim=self.observation_dim,
@@ -74,16 +72,21 @@ class PPOAgent(BaseAgent):
                         (1-int(dones[k])) - values[k]
                     discount *= self.gamma * self.gae_lambda
 
+                advantages[t] = a_t
+
             for batch in batches:
 
+                states, actions, old_probs, values, advantages = map(lambda x: torch.tensor(
+                    x[batch], dtype=torch.float32, device=self.device), [states, actions, old_probs, values, advantages])
 
-                states_, actions_, old_probs_, values_, advantages_ = map(lambda x: torch.tensor(
-                    x[batch]).to(self.device), [states, actions, old_probs, values, advantages])
                 actor_loss = self.actor.update(
-                    states_, actions_, advantages_, old_probs_)
-                critic_loss = self.critic.update(states_, values_, advantages_)
+                    states, actions, advantages, old_probs)
+                critic_loss = self.critic.update(
+                    states, values[batch], advantages)
 
                 total_loss = actor_loss + 0.5 * critic_loss
+                print({"total_loss": total_loss,
+                      "actor_loss": actor_loss, "critic_loss": critic_loss})
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 total_loss.backward()
@@ -95,6 +98,7 @@ class PPOAgent(BaseAgent):
     def get_action(self, obs: np.ndarray):
 
         action, prob = self.actor.get_action(obs)
-        value = self.critic.forward_np(obs)
+        state = torch.tensor(obs, dtype=torch.float32, device=self.device)
+        value = self.critic.forward(state)
 
-        return action.cpu().detach().numpy(), prob.cpu().detach().numpy(), value
+        return action.cpu().detach().numpy(), prob.cpu().detach().numpy(), value.cpu().detach().numpy()

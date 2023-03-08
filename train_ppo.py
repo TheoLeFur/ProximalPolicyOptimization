@@ -6,11 +6,11 @@ from agents.ppo_agent import PPOAgent
 from tqdm import tqdm
 
 
-def train():
+def train_agent():
 
     env = gym.make("CartPole-v0")
     N = 20
-    n_epochs = 5
+    n_epochs = 10
     learning_rate = 3e-4
 
     params = {
@@ -24,8 +24,7 @@ def train():
         "eps_clip": 0.1,
     }
 
-    agent = PPOAgent(params, batch_size=16)
-    print(agent.observation_dim)
+    agent = PPOAgent(hparams=params)
 
     n_games = 300
 
@@ -48,6 +47,7 @@ def train():
             agent.add_to_replay_buffer(observation, action, prob, value, reward, done)
 
             if n_steps % N == 0:
+                print("Policy is updating -------")
                 agent.train()
                 learn_iters += 1
             observation = observation_
@@ -61,4 +61,4 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    train_agent()
