@@ -9,28 +9,22 @@ from collections import OrderedDict
 from infrastructure.pytorch_utils import build_mlp
 
 
+@attr.s(eq=False, repr=False)
 class PPOPolicy(nn.Module):
 
-    def __init__(self,
-                 action_dim: int,
-                 ob_dim: int,
-                 n_layers: int,
-                 size: int,
-                 device: torch.device = None,
-                 learning_rate: float = 3e-4,
-                 discrete: bool = True,
-                 eps_clip: float = 0.1):
+    action_dim: int = attr.ib(default=None),
+    ob_dim: int = attr.ib(default=None),
+    n_layers: int = attr.ib(default=2, validator=lambda i, a, x: x > 0),
+    size: int = attr.ib(default=64, validator=lambda i, a, x: x > 0)
+    device: torch.device = attr.ib(default=None),
+    learning_rate: float = attr.ib(
+        default=3e-4, validator=lambda i, a, x: x > 0),
+    discrete: bool = attr.ib(default=True),
+    eps_clip: float = attr.ib(default=None, validator=lambda i, a, x: x > 0)
+
+    def __attrs_post_init__(self) -> None:
 
         super().__init__()
-
-        self.action_dim = action_dim
-        self.ob_dim = ob_dim
-        self.n_layers = n_layers
-        self.size = size
-        self.device = device
-        self.learning_rate = learning_rate
-        self.discrete = discrete
-        self.eps_clip = eps_clip
 
         if self.discrete:
 
@@ -67,7 +61,7 @@ class PPOPolicy(nn.Module):
             observation = observation[None]
         with torch.no_grad():
             distribution = self.forward(torch.tensor(
-                    [observation]).to(self.device))
+                [observation]).to(self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
@@ -85,7 +79,7 @@ class PPOPolicy(nn.Module):
             batch_mean = self.mean_net(observation)
             covariance = torch.exp(self.log_std)
             return torch.distributions.Normal(batch_mean, covariance)
-        
+
     def update(self, observations: torch.Tensor, actions: torch.Tensor, advantages: torch.Tensor, old_log_probs: torch.Tensor):
 
         distribution = self(observations)

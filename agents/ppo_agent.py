@@ -7,18 +7,17 @@ from agents.base_agent import BaseAgent
 from policies.MLPPolicy import PPOPolicy
 from critics.PPOCritic import PPOCritic
 
+@attr.s(eq = False, repr = False)
+class PPOAgent():
 
-class PPOAgent:
+    hparams: dict = attr.ib(default=None)
+    gamma: float = attr.ib(default=0.99, validator=lambda i, a, x : x >0)
+    gae_lambda: float = attr.ib(default=0.95, validator=lambda i, a, x: x > 0)
+    batch_size: int = attr.ib(default = 64, validator = lambda i, a, x : x > 0)
+    n_epochs: int = attr.ib(default = 5, validator = lambda i, a, x : x > 0)
+    N: int = attr.ib(default = 20, validator = lambda i, a, x : x > 0)
+    def __attrs_post_init__(self) -> None:
 
-    def __init__(self, hparams: dict, gamma: float = 0.99, gae_lambda: float = 0.95, batch_size: int = 64, n_epochs: int = 5, N: int = 20) -> None:
-
-
-        self.hparams = hparams
-        self.gamma = gamma
-        self.gae_lambda = gae_lambda
-        self.batch_size = batch_size
-        self.n_epochs = n_epochs
-        self.N = N
         self.action_dim = self.hparams["action_dim"]
         self.observation_dim = self.hparams["observation_dim"]
         self.n_layers = self.hparams["n_layers"]

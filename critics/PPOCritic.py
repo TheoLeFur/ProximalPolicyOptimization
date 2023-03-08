@@ -1,29 +1,23 @@
+import attr
 import torch
 import torch.nn as nn
 import numpy as np
 from critics.BaseCritic import BaseCritic
 from infrastructure.pytorch_utils import build_mlp
 
-
+@attr.s(eq = False, repr = False)
 class PPOCritic(nn.Module):
 
-    def __init__(
-            self,
-            ob_dim: np.ndarray, 
-            n_layers: int = 2, 
-            size: int = 64, 
-            device: torch.device = None, 
-            learning_rate: float = 3e-4, 
-            discrete: bool = True) -> None:
+    ob_dim: np.ndarray = attr.ib(default = None)
+    n_layers: int = attr.ib(default = 2)
+    size: int = attr.ib(default = 64), 
+    device: torch.device = attr.ib(default = None), 
+    learning_rate: float = attr.ib(default = 3e-4), 
+    discrete: bool = attr.ib(default = True) 
+
+    def __attrs_post_init__(self) -> None:
 
         super().__init__()
-
-        self.ob_dim = ob_dim
-        self.n_layers = n_layers 
-        self.size = size 
-        self.device = device 
-        self.learning_rate = learning_rate
-        self.discrete = discrete 
 
         self.critic = build_mlp(
             input_size=self.ob_dim,
@@ -52,3 +46,6 @@ class PPOCritic(nn.Module):
 
     def save(self, filepath: str):
         torch.save(self.state_dict(), filepath)
+
+    def load(self, filepath : str):
+        self.critic.load_state_dict(filepath)
