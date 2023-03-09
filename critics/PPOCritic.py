@@ -10,9 +10,9 @@ class PPOCritic(nn.Module):
 
     ob_dim: np.ndarray = attr.ib(default = None)
     n_layers: int = attr.ib(default = 2)
-    size: int = attr.ib(default = 64), 
-    device: torch.device = attr.ib(default = None), 
-    learning_rate: float = attr.ib(default = 3e-4), 
+    size: int = attr.ib(default = 64)
+    device: torch.device = attr.ib(default = None)
+    learning_rate: float = attr.ib(default = 3e-4)
     discrete: bool = attr.ib(default = True) 
 
     def __attrs_post_init__(self) -> None:

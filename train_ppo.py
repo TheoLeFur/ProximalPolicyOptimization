@@ -2,16 +2,18 @@ import numpy as np
 import gym
 import torch
 import argparse
+from collections import OrderedDict
 from agents.ppo_agent import PPOAgent
 from tqdm import tqdm
 
 
-def train_agent():
+def train_agent(train_params):
 
-    env = gym.make("CartPole-v0")
-    N = 20
-    n_epochs = 10
-    learning_rate = 3e-4
+    env = gym.make(train_params["env"])
+    N = train_params["N"]
+    n_epochs = train_params["n_epochs"]
+    learning_rate = train_params["learning_rate"]
+    n_games = train_params["n_games"]
 
     params = {
         "action_dim": env.action_space.n,
@@ -25,10 +27,9 @@ def train_agent():
     }
 
     agent = PPOAgent(hparams=params)
-
-    n_games = 300
-
+    logs = OrderedDict()
     score_history = []
+
 
     for i in tqdm(range(n_games)):
 
@@ -37,6 +38,7 @@ def train_agent():
         score = 0
         learn_iters = 0
         n_steps = 0
+        
 
         while not done:
 
@@ -47,8 +49,10 @@ def train_agent():
             agent.add_to_replay_buffer(observation, action, prob, value, reward, done)
 
             if n_steps % N == 0:
-                print("Policy is updating -------")
+
+                print(" ------- policy is updating - ------")
                 agent.train()
+                print(agent.train())
                 learn_iters += 1
             observation = observation_
             score_history.append(score)
@@ -61,4 +65,29 @@ def train_agent():
 
 
 if __name__ == "__main__":
-    train_agent()
+
+    parser = argparse.ArgumentParser("Proximal Policy Optimization")
+
+    parser.add_argument("env", type = str)
+    parser.add_argument("N", type = int, default = 20)
+    parser.add_argument("n_epochs", type = int, default = 10)
+    parser.add_argument("learning_rate", type = float, default = 3e-4)
+    parser.add_argument("n_games", type = int, default = 500)
+
+
+    args = parser.parse_args()
+    params = vars(args)
+
+    train_agent(params)
+
+    
+
+
+
+
+
+
+
+
+
+    

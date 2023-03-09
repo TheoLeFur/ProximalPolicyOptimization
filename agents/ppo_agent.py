@@ -13,7 +13,7 @@ class PPOAgent():
     hparams: dict = attr.ib(default=None)
     gamma: float = attr.ib(default=0.99, validator=lambda i, a, x : x >0)
     gae_lambda: float = attr.ib(default=0.95, validator=lambda i, a, x: x > 0)
-    batch_size: int = attr.ib(default = 64, validator = lambda i, a, x : x > 0)
+    batch_size: int = attr.ib(default = 16, validator = lambda i, a, x : x > 0)
     n_epochs: int = attr.ib(default = 5, validator = lambda i, a, x : x > 0)
     N: int = attr.ib(default = 20, validator = lambda i, a, x : x > 0)
     def __attrs_post_init__(self) -> None:
@@ -56,6 +56,10 @@ class PPOAgent():
 
     def train(self):
 
+        actor_loss_buffer = []
+        critic_loss_buffer = []
+        total_loss_buffer = []
+
         for _ in range(self.n_epochs):
 
             states, actions, old_probs, values, rewards, dones, batches = self.replay_buffer.generate_batches()
@@ -78,14 +82,24 @@ class PPOAgent():
                 states, actions, old_probs, values, advantages = map(lambda x: torch.tensor(
                     x[batch], dtype=torch.float32, device=self.device), [states, actions, old_probs, values, advantages])
 
-                actor_loss = self.actor.update(
+                actor_loss, entropy = self.actor.update(
                     states, actions, advantages, old_probs)
                 critic_loss = self.critic.update(
                     states, values[batch], advantages)
+                
+                if not torch.isnan(advantages.std()):
+                    advantages = (advantages - advantages.mean()) / \
+                        (advantages.std() + 1e-5)
+                
 
-                total_loss = actor_loss + 0.5 * critic_loss
-                print({"total_loss": total_loss,
-                      "actor_loss": actor_loss, "critic_loss": critic_loss})
+                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy
+
+                print(total_loss)
+                total_loss_buffer.append(total_loss.cpu().detach().numpy())
+                actor_loss_buffer.append(actor_loss.cpu().detach().numpy())
+                critic_loss_buffer.append(critic_loss.cpu().detach().numpy())
+
+
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 total_loss.backward()
@@ -93,6 +107,10 @@ class PPOAgent():
                 self.critic.optimizer.step()
 
         self.replay_buffer.clear_memory()
+
+        return {"total_loss" : np.mean(total_loss_buffer),
+                "actor_loss" : np.mean(actor_loss_buffer),
+                "critic_loss" : np.mean(critic_loss_buffer)}
 
     def get_action(self, obs: np.ndarray):
 

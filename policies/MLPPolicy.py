@@ -12,14 +12,13 @@ from infrastructure.pytorch_utils import build_mlp
 @attr.s(eq=False, repr=False)
 class PPOPolicy(nn.Module):
 
-    action_dim: int = attr.ib(default=None),
-    ob_dim: int = attr.ib(default=None),
-    n_layers: int = attr.ib(default=2, validator=lambda i, a, x: x > 0),
+    action_dim: int = attr.ib(default=None)
+    ob_dim: int = attr.ib(default=None)
+    n_layers: int = attr.ib(default=2, validator=lambda i, a, x: x > 0)
     size: int = attr.ib(default=64, validator=lambda i, a, x: x > 0)
-    device: torch.device = attr.ib(default=None),
-    learning_rate: float = attr.ib(
-        default=3e-4, validator=lambda i, a, x: x > 0),
-    discrete: bool = attr.ib(default=True),
+    device: torch.device = attr.ib(default=None)
+    learning_rate: float = attr.ib(default=3e-4, validator=lambda i, a, x: x > 0)
+    discrete: bool = attr.ib(default=True)
     eps_clip: float = attr.ib(default=None, validator=lambda i, a, x: x > 0)
 
     def __attrs_post_init__(self) -> None:
@@ -61,7 +60,7 @@ class PPOPolicy(nn.Module):
             observation = observation[None]
         with torch.no_grad():
             distribution = self.forward(torch.tensor(
-                [observation]).to(self.device))
+                observation).to(self.device))
             action = distribution.sample()
             logprobs = distribution.log_prob(action)
 
@@ -71,6 +70,7 @@ class PPOPolicy(nn.Module):
         torch.save(self.state_dict(), filepath)
 
     def forward(self, observation: torch.Tensor) -> distributions.Distribution:
+
         if self.discrete:
             logits = self.logits_na(observation).squeeze()
             return torch.distributions.Categorical(logits=logits)
@@ -90,4 +90,6 @@ class PPOPolicy(nn.Module):
                             1 + self.eps_clip) * advantages
 
         actor_loss = - torch.min(surr1, surr2).mean()
-        return actor_loss
+        entropy = distribution.entropy().mean()
+
+        return actor_loss, entropy
