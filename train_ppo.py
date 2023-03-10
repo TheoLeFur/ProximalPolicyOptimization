@@ -19,16 +19,22 @@ def train_agent(train_params):
         "action_dim": env.action_space.n,
         "observation_dim": env.observation_space.shape[0],
         "n_layers": 2,
-        "size": 64,
+        "size": 128,
         "device": "mps" if torch.backends.mps.is_available() else "cpu",
         "learning_rate": 3e-4,
         "discrete": True,
-        "eps_clip": 0.1,
+        "eps_clip": 0.2,
+        "rnd_output_size" : 5,
+        "rnd_size" : 128,
+        "rnd_n_layers" : 2
     }
 
     agent = PPOAgent(hparams=params)
     logs = OrderedDict()
     score_history = []
+    total_losses = []
+    actor_losses = []
+    critic_losses = []
 
 
     for i in tqdm(range(n_games)):
@@ -51,11 +57,23 @@ def train_agent(train_params):
             if n_steps % N == 0:
 
                 print(" ------- policy is updating - ------")
-                agent.train()
+                losses = agent.train()
+                
+                total_losses.append(losses["total_loss"])
+                actor_losses.append(losses["actor_loss"])
+                critic_losses.append(losses["critic_loss"])
+
+                
                 print(agent.train())
                 learn_iters += 1
+
             observation = observation_
             score_history.append(score)
+
+            logs["total_losses"] = np.mean(total_losses)
+            logs["actor_losses"] = np.mean(actor_losses)
+            logs["critic_losses"] = np.mean(critic_losses)
+
 
         print(
             {"game number": i,

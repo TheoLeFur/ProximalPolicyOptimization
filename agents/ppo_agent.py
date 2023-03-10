@@ -6,6 +6,7 @@ from infrastructure.replay_buffer import ReplayBuffer
 from agents.base_agent import BaseAgent
 from policies.MLPPolicy import PPOPolicy
 from critics.PPOCritic import PPOCritic
+from exploration.random_distillation_net import RandomNetworkDistillation
 
 @attr.s(eq = False, repr = False)
 class PPOAgent():
@@ -13,9 +14,11 @@ class PPOAgent():
     hparams: dict = attr.ib(default=None)
     gamma: float = attr.ib(default=0.99, validator=lambda i, a, x : x >0)
     gae_lambda: float = attr.ib(default=0.95, validator=lambda i, a, x: x > 0)
-    batch_size: int = attr.ib(default = 16, validator = lambda i, a, x : x > 0)
+    batch_size: int = attr.ib(default = 8, validator = lambda i, a, x : x > 0)
     n_epochs: int = attr.ib(default = 5, validator = lambda i, a, x : x > 0)
     N: int = attr.ib(default = 20, validator = lambda i, a, x : x > 0)
+
+
     def __attrs_post_init__(self) -> None:
 
         self.action_dim = self.hparams["action_dim"]
@@ -26,6 +29,9 @@ class PPOAgent():
         self.learning_rate = self.hparams["learning_rate"]
         self.discrete = self.hparams["discrete"]
         self.eps_clip = self.hparams["eps_clip"]
+        self.rnd_output_size = self.hparams["rnd_output_size"]
+        self.rnd_size = self.hparams["rnd_size"]
+        self.rnd_n_layers = self.hparams["rnd_n_layers"]
 
 
         self.actor = PPOPolicy(
@@ -46,6 +52,16 @@ class PPOAgent():
             device=self.device,
             learning_rate=self.learning_rate,
             discrete=self.discrete,
+        )
+
+
+        self.random_distillation_network = RandomNetworkDistillation(
+            ob_dim = self.observation_dim,
+            rnd_output_dim = self.rnd_output_size,
+            n_layers = self.rnd_n_layers,
+            size = self.rnd_size,
+            device = self.device
+
         )
 
         self.replay_buffer = ReplayBuffer(self.batch_size)
@@ -91,20 +107,21 @@ class PPOAgent():
                     advantages = (advantages - advantages.mean()) / \
                         (advantages.std() + 1e-5)
                 
+                random_distilation_loss = self.random_distillation_network.update(states)
+                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy + random_distilation_loss
 
-                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy
-
-                print(total_loss)
-                total_loss_buffer.append(total_loss.cpu().detach().numpy())
-                actor_loss_buffer.append(actor_loss.cpu().detach().numpy())
-                critic_loss_buffer.append(critic_loss.cpu().detach().numpy())
+                total_loss_buffer.append(total_loss.item())
+                actor_loss_buffer.append(actor_loss.item())
+                critic_loss_buffer.append(critic_loss.item())
 
 
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
+                self.random_distillation_network.optimizer.zero_grad()
                 total_loss.backward()
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
+                self.random_distillation_network.optimizer.step()
 
         self.replay_buffer.clear_memory()
 

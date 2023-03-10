@@ -1,1 +1,1 @@
-python train_ppo.py CartPole-v0 20 10 3e-4 500
+python train_ppo.py CartPole-v0 20 5 3e-4 300

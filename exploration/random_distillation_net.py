@@ -6,20 +6,20 @@ from infrastructure.pytorch_utils import build_mlp
 
 
 def weights_init_uniform(model):
-    model.weight.data._uniform()
-    model.bias.data._uniform()
+    model.weight.data.uniform_()
+    model.bias.data.uniform_()
 
 
 def weights_init_normal(model):
-    model.weight.data._normal()
-    model.bias.data._normal()
+    model.weight.data.normal_()
+    model.bias.data.normal_()
 
 
 @attr.s(eq=False, repr=False)
 class RandomNetworkDistillation(nn.Module):
 
     ob_dim: int = attr.ib(default=None, validator=lambda i, a, x: x > 0)
-    rnd_output_dim: int = attr.int(
+    rnd_output_dim: int = attr.ib(
         default=None, validator=lambda i, a, x: x > 0)
     n_layers: int = attr.ib(default=None, validator=lambda i, a, x: x > 0)
     size: int = attr.ib(default=None, validator=lambda i, a, x: x > 0)
@@ -66,11 +66,7 @@ class RandomNetworkDistillation(nn.Module):
 
         observation = torch.tensor(
             obs, dtype=torch.float32, device=self.device)
-        errors = self(obs)
+        errors = self(observation)
         loss = errors.mean()
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        return loss.item()
+        return loss
