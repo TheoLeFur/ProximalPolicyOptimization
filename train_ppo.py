@@ -2,14 +2,25 @@ import numpy as np
 import gym
 import torch
 import argparse
+import matplotlib.pyplot as plt
 from collections import OrderedDict
 from agents.ppo_agent import PPOAgent
 from tqdm import tqdm
+from gym.envs.registration import register
+from gym.envs.registration import registry
+
 
 
 def train_agent(train_params):
 
-    env = gym.make(train_params["env"])
+
+    register(
+            id='PointmassHard-v0',
+            entry_point='ProximalPolicyOptimization.envs.pointmass::Pointmass',
+            kwargs={'difficulty': 2}
+            )
+    env = gym.make('PointmassHard-v0')
+    env.set_logdir(os.path.join("logs", "test"))
     N = train_params["N"]
     n_epochs = train_params["n_epochs"]
     learning_rate = train_params["learning_rate"]
@@ -24,26 +35,29 @@ def train_agent(train_params):
         "learning_rate": 3e-4,
         "discrete": True,
         "eps_clip": 0.2,
-        "rnd_output_size" : 5,
-        "rnd_size" : 128,
+        "rnd_output_size" : 128,
+        "rnd_size" :64,
         "rnd_n_layers" : 2
     }
 
     agent = PPOAgent(hparams=params)
     logs = OrderedDict()
     score_history = []
+    best_score = env.reward_range[0]
     total_losses = []
     actor_losses = []
     critic_losses = []
+    
 
 
     for i in tqdm(range(n_games)):
-
+    
         observation, _ = env.reset()
         done = False
-        score = 0
         learn_iters = 0
         n_steps = 0
+        score = 0
+        avg_score = 0
         
 
         while not done:
@@ -62,24 +76,18 @@ def train_agent(train_params):
                 total_losses.append(losses["total_loss"])
                 actor_losses.append(losses["actor_loss"])
                 critic_losses.append(losses["critic_loss"])
-
-                
-                print(agent.train())
                 learn_iters += 1
 
             observation = observation_
             score_history.append(score)
+        score_history.append(score)
+        avg_score = np.mean(score_history[-100:])
 
-            logs["total_losses"] = np.mean(total_losses)
-            logs["actor_losses"] = np.mean(actor_losses)
-            logs["critic_losses"] = np.mean(critic_losses)
+        if avg_score > best_score:
+            best_score = avg_score
 
-
-        print(
-            {"game number": i,
-             "score": np.mean(score_history),
-             }
-        )
+        print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
+              'time_steps', n_steps, 'learning_steps', learn_iters)
 
 
 if __name__ == "__main__":
@@ -88,7 +96,7 @@ if __name__ == "__main__":
 
     parser.add_argument("env", type = str)
     parser.add_argument("N", type = int, default = 20)
-    parser.add_argument("n_epochs", type = int, default = 10)
+    parser.add_argument("n_epochs", type = int, default = 5)
     parser.add_argument("learning_rate", type = float, default = 3e-4)
     parser.add_argument("n_games", type = int, default = 500)
 

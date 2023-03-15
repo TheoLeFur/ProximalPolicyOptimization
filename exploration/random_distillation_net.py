@@ -60,7 +60,7 @@ class RandomNetworkDistillation(nn.Module):
         prediction = self.f_hat(observation)
         target = self.random_function(observation)
 
-        return torch.norm(prediction - target, dim=1)
+        return torch.norm(prediction - target)
 
     def update(self, obs: np.ndarray):
 

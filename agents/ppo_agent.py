@@ -107,8 +107,8 @@ class PPOAgent():
                     advantages = (advantages - advantages.mean()) / \
                         (advantages.std() + 1e-5)
                 
-                random_distilation_loss = self.random_distillation_network.update(states)
-                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy + random_distilation_loss
+                random_distillation_loss = self.random_distillation_network.update(states)
+                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy + 0.1 * random_distillation_loss
 
                 total_loss_buffer.append(total_loss.item())
                 actor_loss_buffer.append(actor_loss.item())

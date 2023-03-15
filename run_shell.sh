@@ -1,1 +1,1 @@
-python train_ppo.py CartPole-v0 20 5 3e-4 300
+python train_ppo.py PointmassHard-v0 20 5 3e-4 300
