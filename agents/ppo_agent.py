@@ -29,9 +29,12 @@ class PPOAgent():
         self.learning_rate = self.hparams["learning_rate"]
         self.discrete = self.hparams["discrete"]
         self.eps_clip = self.hparams["eps_clip"]
+        self.use_rnd_exploration = self.hparams["use_rnd_exploration"]
         self.rnd_output_size = self.hparams["rnd_output_size"]
         self.rnd_size = self.hparams["rnd_size"]
         self.rnd_n_layers = self.hparams["rnd_n_layers"]
+        self.entropy_coefficient = self.hparams["ent_coeff"]
+        
 
 
         self.actor = PPOPolicy(
@@ -107,8 +110,12 @@ class PPOAgent():
                     advantages = (advantages - advantages.mean()) / \
                         (advantages.std() + 1e-5)
                 
-                random_distillation_loss = self.random_distillation_network.update(states)
-                total_loss = actor_loss + 0.5 * critic_loss - 0.01 * entropy + 0.1 * random_distillation_loss
+                if self.use_rnd_exploration:
+                    random_distillation_loss = self.random_distillation_network.update(states)
+                    total_loss = actor_loss + 0.5 * critic_loss - \
+                        self.entropy_coefficient * entropy + random_distillation_loss
+                else:
+                    total_loss = actor_loss + 0.5 * critic_loss - self.entropy_coefficient * entropy
 
                 total_loss_buffer.append(total_loss.item())
                 actor_loss_buffer.append(actor_loss.item())

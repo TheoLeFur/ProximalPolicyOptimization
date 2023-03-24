@@ -48,4 +48,5 @@ class PPOCritic(nn.Module):
         torch.save(self.state_dict(), filepath)
 
     def load(self, filepath : str):
+        
         self.critic.load_state_dict(filepath)
